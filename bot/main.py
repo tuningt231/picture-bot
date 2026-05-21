@@ -13,7 +13,8 @@ from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 
 from bot.admin_chat import admin_router
-from bot.dialogs import picture_router, start_router
+
+import routes
 
 fallback_router = Router()
 
@@ -38,8 +39,10 @@ async def bot_main() -> None:
     # dp.message.middleware(SetUserMiddleware())
     # dp.message.middleware(CheckAccessMiddleware())
 
-    dp.include_router(start_router)
-    dp.include_router(picture_router)
+    # dp.include_router(router)
+    # dp.include_router(picture_router)
+    # dp.include_router(profile_router)
+    dp.include_router(routes.start_router)
     dp.include_router(admin_router)
     dp.include_router(fallback_router)
 

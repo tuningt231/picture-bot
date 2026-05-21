@@ -30,20 +30,25 @@ class Api:
                 data = await resp.json()
                 return data["id"]
 
-    @staticmethod
-    async def request(tg_id: int, req: str) -> None:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{BASE_URL}/request", json={"tg_id": tg_id, "req": req}) as resp:
-                resp.raise_for_status()
-
-    @staticmethod
-    async def updateUser(tg_id: int, faculty: str | None = None) -> None:
-        async with aiohttp.ClientSession() as session:
-            async with session.patch(f"{BASE_URL}/users", json={
-                "tg_id": tg_id,
-                "faculty": faculty,
-            }) as resp:
-                resp.raise_for_status()
+    # @staticmethod
+    # async def updateUser(
+    #     tg_id: int,
+    #     username: str | None = None,
+    #     faculty: str | None = None,
+    #     req_member: bool | None = None,
+    #     req_organizer: bool | None = None,
+    #     req_moderator: bool | None = None,
+    # ) -> None:
+    #     async with aiohttp.ClientSession() as session:
+    #         async with session.patch(f"{BASE_URL}/users", json={
+    #             "tg_id": tg_id,
+    #             "username": username,
+    #             "faculty": faculty,
+    #             "req_member": req_member,
+    #             "req_organizer": req_organizer,
+    #             "req_moderator": req_moderator,
+    #         }) as resp:
+    #             resp.raise_for_status()
 
     @staticmethod
     async def getUser(tg_id: int) -> dict | None:

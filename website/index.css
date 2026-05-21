@@ -71,20 +71,5 @@ body {
     top: 50%;
     left: 50%;
     transform-origin: center center;
+    background: #4a90d9;
 }
-
-/* Placeholder colors so photos are visually distinct */
-.photo:nth-child(1) { background: #4a90d9; }
-.photo:nth-child(2) { background: #7b5ea7; }
-.photo:nth-child(3) { background: #e05c5c; }
-.photo:nth-child(4) { background: #4caf8a; }
-.photo:nth-child(5) { background: #e0a040; }
-.photo:nth-child(6) { background: #d94a85; }
-.photo:nth-child(7) { background: #3abbd4; }
-.photo:nth-child(8) { background: #8bc34a; }
-.photo:nth-child(9) { background: #e05c5c; }
-.photo:nth-child(10) { background: #4caf8a; }
-.photo:nth-child(11) { background: #e0a040; }
-.photo:nth-child(12) { background: #d94a85; }
-.photo:nth-child(13) { background: #3abbd4; }
-.photo:nth-child(14) { background: #8bc34a; }

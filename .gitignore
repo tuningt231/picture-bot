@@ -3,3 +3,5 @@
 /.vscode
 /.claude
 google_key.json
+/sharedImages
+node_modules

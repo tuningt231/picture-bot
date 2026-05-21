@@ -39,9 +39,9 @@ class User(Model):
     # Данные пользователя, он может их свободно менять
     username = fields.CharField(max_length=256)
     faculty = fields.CharEnumField(Faculty, null=True)
-    _req_member = fields.BooleanField(null=True)
-    _req_organizer = fields.BooleanField(null=True)
-    _req_moderator = fields.BooleanField(null=True)
+    # _req_member = fields.BooleanField(null=True)
+    # _req_organizer = fields.BooleanField(null=True)
+    # _req_moderator = fields.BooleanField(null=True)
 
     # Данные пользователя, ИСТИННЫЕ!
     is_member = fields.BooleanField(default=False)

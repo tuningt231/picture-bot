@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -12,6 +13,12 @@ from server.models import Picture, User, close_orm, init_orm
 app = FastAPI(
     on_startup=[init_orm],
     on_shutdown=[close_orm],
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["GET"],
 )
 
 
@@ -56,14 +63,26 @@ async def create_user(body: CreateUserBody):
 
 class UpdateUserBody(BaseModel):
     tg_id: int
+    username: str | None = None
     faculty: str | None = None
+    req_member: bool | None = None
+    req_organizer: bool | None = None
+    req_moderator: bool | None = None
 
 
 @app.patch("/users")
 async def update_user(body: UpdateUserBody):
     user = await get_active_user(body.tg_id)
+    if body.username is not None:
+        user.username = body.username
     if body.faculty is not None:
         user.faculty = User.Faculty(body.faculty)
+    if body.req_member is not None:
+        user._req_member = body.req_member
+    if body.req_organizer is not None:
+        user._req_organizer = body.req_organizer
+    if body.req_moderator is not None:
+        user._req_moderator = body.req_moderator
     await user.save()
     return {"ok": True}
 
@@ -85,27 +104,10 @@ async def get_user(tg_id: int):
         "is_member": user.is_member,
         "is_organizer": user.is_organizer,
         "is_moderator": user.is_moderator,
+        # "req_member": user._req_member,
+        # "req_moderator": user._req_moderator,
+        # "req_organizer": user._req_organizer,
     }
-
-
-# --- 3. Запрос привилегий ---
-
-class RequestBody(BaseModel):
-    tg_id: int
-    req: Literal["member", "organizer", "moderator"]
-
-
-@app.post("/request")
-async def request_privilege(body: RequestBody):
-    user = await get_active_user(body.tg_id)
-    if body.req == "member":
-        user._req_member = True
-    elif body.req == "organizer":
-        user._req_organizer = True
-    elif body.req == "moderator":
-        user._req_moderator = True
-    await user.save()
-    return {"ok": True}
 
 
 # --- 3. Загрузка изображения ---
@@ -154,25 +156,25 @@ async def get_pictures(from_date: datetime, to_date: datetime):
     return ret
 
 
-@app.get("/image/{picture_id}")
-async def get_image(picture_id: int):
+@app.get("/pictures/{picture_id}/download")
+async def download_picture(picture_id: int):
     picture = await Picture.get_or_none(id=picture_id)
-    if picture is None:
+    if picture is None or not Path(picture.filename).exists():
         raise HTTPException(status_code=404, detail="Picture not found")
     return FileResponse(picture.filename)
 
 
-@app.get("/pictures/{picture_id}")
-async def get_picture(picture_id: int):
-    picture = await Picture.get_or_none(id=picture_id)
-    if picture is None:
-        raise HTTPException(status_code=404, detail="Picture not found")
-    return {
-        "id": picture.id,
-        "state": picture.state,
-        "label": picture.label,
-        "check_details": picture.check_details,
-    }
+# @app.get("/pictures/{picture_id}")
+# async def get_picture(picture_id: int):
+#     picture = await Picture.get_or_none(id=picture_id)
+#     if picture is None:
+#         raise HTTPException(status_code=404, detail="Picture not found")
+#     return {
+#         "id": picture.id,
+#         "state": picture.state,
+#         "label": picture.label,
+#         "check_details": picture.check_details,
+#     }
 
 
 @app.post("/pictures/{picture_id}/approve")
