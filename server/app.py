@@ -1,159 +1,130 @@
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, JSONResponse
+from tortoise import Tortoise
+from tortoise.contrib.fastapi import register_tortoise
+from tortoise.contrib.pydantic import pydantic_model_creator
+from tortoise.exceptions import ValidationError
 
-from server.models import Picture, User, close_orm, init_orm
+from server.models import Picture, User
 
+app = FastAPI()
 
-app = FastAPI(
-    on_startup=[init_orm],
-    on_shutdown=[close_orm],
-)
+register_tortoise(app,
+                  db_url="postgres://postgres:1@localhost:5432/imbnow",
+                  modules={"models": ["server.models"]},
+                  add_exception_handlers=True,
+                  generate_schemas=True)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
-    allow_methods=["GET"],
 )
+
+
+@app.exception_handler(ValidationError)
+async def validation_error_handler(request: Request, exc: ValidationError):
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
 @app.middleware("http")
 async def localhost_only_post(request: Request, call_next):
-    if request.method == "POST" and (request.client is None or request.client.host not in ("127.0.0.1", "::1")):
-        raise HTTPException(status_code=403, detail="POST requests are only allowed from localhost")
+    if request.method != "GET" and (request.client is None or request.client.host not in ("127.0.0.1", "::1")):
+        raise HTTPException(
+            status_code=403, detail="This method is only allowed from localhost")
     return await call_next(request)
 
 
-async def get_active_user(tg_id: int) -> User:
-    user = await User.get_or_none(tg_id=tg_id)
-    if user is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    if user.account_state == User.AccountState.BANNED:
-        raise HTTPException(status_code=403, detail="Аккаунт пользователя забанен")
-    if user.account_state == User.AccountState.LOCKED:
-        raise HTTPException(status_code=403, detail="Аккаунт пользователя заблокирован")
+# важно сделать это до создания pydantic схем
+Tortoise.init_models(["server.models"], "models")
+
+CreateUserRequest = pydantic_model_creator(
+    User, name="CreateUserRequest",
+    include=('tg_id', 'tg_tag', 'username'))
+
+UserResponse = pydantic_model_creator(
+    User, name="UserResponse",
+    include=('id', 'tg_id', 'tg_tag', 'username', 'is_banned',
+             'is_member', 'is_organizer', 'is_moderator'))
+
+UpdateUserRequest = pydantic_model_creator(
+    User, name="UpdateUserRequest",
+    include=('username', 'tg_tag', 'is_banned', 'is_member', 'is_organizer', 'is_moderator'),
+    optional=('username', 'tg_tag', 'is_banned', 'is_member', 'is_organizer', 'is_moderator'))
+
+UploadPictureRequest = pydantic_model_creator(
+    Picture, name="UploadPictureRequest",
+    include=('filename', 'tg_id', 'label'))
+
+PictureResponse = pydantic_model_creator(
+    Picture, name="PictureResponse",
+    include=('id', 'filename', 'tg_id', 'created_at', 'accepted', 
+             'check_details', 'label', 'accepted_at'))
+
+UpdatePictureRequest = pydantic_model_creator(
+    Picture, name="UpdatePictureRequest",
+    include=('accepted', 'check_details', 'accepted_at'),
+    optional=('accepted', 'check_details', 'accepted_at'))
+
+
+# --- Пользователи ---
+
+
+@app.post("/users", response_model=UserResponse)
+async def create_user(body: CreateUserRequest):  # type: ignore
+    user = await User.create(**body.dict())
     return user
 
-# --- 1. Создание пользователя ---
 
-class CreateUserBody(BaseModel):
-    tg_id: int
-    tg_tag: str
-    username: str
-    faculty: str | None = None
+@app.get("/users", response_model=list[UserResponse])
+async def get_all_users():
+    return await User.all()
 
 
-@app.post("/users")
-async def create_user(body: CreateUserBody):
-    user = await User.create(
-        tg_id=body.tg_id,
-        tg_tag=body.tg_tag,
-        username=body.username,
-        faculty=body.faculty,
-    )
-    return {"id": user.id}
-
-
-# --- 2. Обновление пользователя ---
-
-class UpdateUserBody(BaseModel):
-    tg_id: int
-    username: str | None = None
-    faculty: str | None = None
-    req_member: bool | None = None
-    req_organizer: bool | None = None
-    req_moderator: bool | None = None
-
-
-@app.patch("/users")
-async def update_user(body: UpdateUserBody):
-    user = await get_active_user(body.tg_id)
-    if body.username is not None:
-        user.username = body.username
-    if body.faculty is not None:
-        user.faculty = User.Faculty(body.faculty)
-    if body.req_member is not None:
-        user._req_member = body.req_member
-    if body.req_organizer is not None:
-        user._req_organizer = body.req_organizer
-    if body.req_moderator is not None:
-        user._req_moderator = body.req_moderator
-    await user.save()
-    return {"ok": True}
-
-
-# --- 3. Получение пользователя ---
-
-@app.get("/users")
+@app.get("/users/{tg_id}", response_model=UserResponse)
 async def get_user(tg_id: int):
-    user = await User.get_or_none(tg_id=tg_id)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return {
-        "id": user.id,
-        "tg_id": user.tg_id,
-        "tg_tag": user.tg_tag,
-        "username": user.username,
-        "faculty": user.faculty,
-        "account_state": user.account_state,
-        "is_member": user.is_member,
-        "is_organizer": user.is_organizer,
-        "is_moderator": user.is_moderator,
-        # "req_member": user._req_member,
-        # "req_moderator": user._req_moderator,
-        # "req_organizer": user._req_organizer,
-    }
+    return await User.get(tg_id=tg_id)
 
 
-# --- 3. Загрузка изображения ---
-
-class UploadBody(BaseModel):
-    tg_id: int
-    label: str
-    filepath: str
-    photo_tg_id: str
+@app.patch("/users/{tg_id}", response_model=UserResponse)
+async def patch_user(tg_id: int, body: UpdateUserRequest):  # type: ignore
+    user = await User.get(tg_id=tg_id)
+    await user.update_from_dict(body.dict(exclude_unset=True)).save()
+    return user
 
 
-@app.post("/upload")
-async def upload(body: UploadBody):
-    user = await get_active_user(body.tg_id)
+# --- Изображения ---
 
-    today_start = datetime.now(tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+@app.post("/users/{tg_id}/pictures", response_model=PictureResponse)
+async def upload(tg_id: int, body: UploadPictureRequest):  # type: ignore
+    user = await User.get(tg_id=tg_id)
+
+    today_start = datetime.now(tz=timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0)
     daily_count = await Picture.filter(created_by=user, created_at__gt=today_start).count()
     if daily_count >= user.get_user_image_daily_limit():
-        raise HTTPException(status_code=429, detail="Daily upload limit reached")
-    
-    if not Path(body.filepath).exists():
-        raise HTTPException(status_code=400, detail=f"File {body.filepath} doesn't exist")
+        raise HTTPException(
+            status_code=429, detail="Daily upload limit reached")
 
-    picture = await Picture.create(filename=body.filepath, tg_id=body.photo_tg_id, created_by=user, label=body.label)
+    if not Path(body.filename).exists():
+        raise HTTPException(
+            status_code=400, detail=f"File {body.filename} doesn't exist")
 
-    return {"id": picture.id}
+    picture = await Picture.create(
+        filename=body.filename, tg_id=body.tg_id, created_by=user, label=body.label)
+    return picture
 
 
-# --- 4. Лента изображений для сайта ---
-
-@app.get("/pictures")
+@app.get("/pictures", response_model=list[PictureResponse])
 async def get_pictures(from_date: datetime, to_date: datetime):
-    res = await Picture.filter(accepted_at__gte=from_date, accepted_at__lte=to_date, state=Picture.State.ACCEPTED).select_related("created_by").order_by("-accepted_at")
-    ret = []
-    for picture in res:
-        try:
-            pic_type = "ОРГАНИЗАТОРЫ" if picture.created_by.is_organizer else picture.created_by.faculty.value
-            ret.append({
-                "id": picture.id,
-                "label": picture.label,
-                "type": pic_type,
-                "accepted_at": picture.accepted_at,
-            })
-        except Exception:
-            print(f"Error while filtering pictures: Picture({picture.id})")
-    return ret
+    return await Picture.filter(
+        accepted_at__gte=from_date,
+        accepted_at__lte=to_date,
+        accepted=True
+    ).order_by("-accepted_at")
 
 
 @app.get("/pictures/{picture_id}/download")
@@ -164,35 +135,10 @@ async def download_picture(picture_id: int):
     return FileResponse(picture.filename)
 
 
-# @app.get("/pictures/{picture_id}")
-# async def get_picture(picture_id: int):
-#     picture = await Picture.get_or_none(id=picture_id)
-#     if picture is None:
-#         raise HTTPException(status_code=404, detail="Picture not found")
-#     return {
-#         "id": picture.id,
-#         "state": picture.state,
-#         "label": picture.label,
-#         "check_details": picture.check_details,
-#     }
-
-
-@app.post("/pictures/{picture_id}/approve")
-async def approve_picture(picture_id: int):
+@app.patch("/pictures/{picture_id}", response_model=PictureResponse)
+async def patch_picture(picture_id: int, body: UpdatePictureRequest):  # type: ignore
     picture = await Picture.get_or_none(id=picture_id)
     if picture is None:
         raise HTTPException(status_code=404, detail="Picture not found")
-    picture.state = Picture.State.ACCEPTED
-    picture.accepted_at = datetime.now(timezone.utc)
-    await picture.save()
-    return {"ok": True}
-
-
-@app.post("/pictures/{picture_id}/reject")
-async def reject_picture(picture_id: int):
-    picture = await Picture.get_or_none(id=picture_id)
-    if picture is None:
-        raise HTTPException(status_code=404, detail="Picture not found")
-    picture.state = Picture.State.REJECTED
-    await picture.save()
-    return {"ok": True}
+    await picture.update_from_dict(body.dict(exclude_unset=True)).save()
+    return picture

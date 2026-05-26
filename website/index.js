@@ -60,8 +60,8 @@ function startSpinningAnimation() {
             const hh = photo.offsetHeight / 2;
 
             const depth = Math.sin(rad);
-            const scale = 0.65 + 0.45 * ((depth + 1) / 2);
-            photo.style.opacity = 0.5 + 0.5 * ((depth + 1) / 2);
+            const scale = 0.95 + 0.45 * ((depth + 1) / 2);
+            photo.style.opacity = 0.7 + 0.5 * ((depth + 1) / 2);
             photo.style.transform = `translate(${x - hw}px, ${y - hh}px) scale(${scale})`;
         });
         spinningAnimationID = requestAnimationFrame(animate);
@@ -94,6 +94,34 @@ function stopSpinningAnimation() {
 //         }
 //         addChar(1);
 //     }
+// }
+
+// function startCountdown() {
+//     const targetDate = new Date('2026-05-29T19:00:00');
+//     const el = document.querySelector('#title');
+
+//     function update() {
+//         const now = new Date();
+//         let diff = Math.max(targetDate - now, 0);
+
+//         const totalSeconds = Math.floor(diff / 1000);
+//         const days = Math.floor(totalSeconds / 86400);
+//         const hours = Math.floor((totalSeconds % 86400) / 3600);
+//         const minutes = Math.floor((totalSeconds % 3600) / 60);
+//         const seconds = totalSeconds % 60;
+
+//         const formattedTime =
+//             `${String(days).padStart(2, '0')}:` +
+//             `${String(hours).padStart(2, '0')}:` +
+//             `${String(minutes).padStart(2, '0')}:` +
+//             `${String(seconds).padStart(2, '0')}`;
+
+//         el.innerHTML = `ДО ГАЛА-КОНЦЕРТА<br/>${formattedTime}`;
+//     }
+
+//     const interval = setInterval(update, 1000);
+
+//     return () => clearInterval(interval);
 // }
 
 
@@ -140,8 +168,9 @@ function selectNewImages() {
     const sorted = [...imageCache.entries()]
         .sort((a, b) => b[1].priority - a[1].priority);
 
-    const _4to6 = Math.floor(Math.random() * 3) + 4;
-    const count = Math.min(_4to6, sorted.length);
+    const minPicCount = 5;
+    const maxPicCount = 7;
+    const count = Math.min(Math.floor(Math.random() * (maxPicCount - minPicCount + 1)) + minPicCount, sorted.length);
     const selected = sorted.slice(0, count);
     const rest = sorted.slice(count);
 
@@ -168,6 +197,7 @@ async function init() {
 
     await refreshConfig();
     selectNewImages();
+    // startCountdown();
 
     const sleep = ms => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -176,7 +206,7 @@ async function init() {
     const bigRX = 900;
     const bigRY = 600;
     const transitionMs = 2_000;
-    const durationMs = 10_000;
+    const durationMs = 60_000;
 
     setInterval(refreshConfig, 60_000);
     setInterval(async () => {

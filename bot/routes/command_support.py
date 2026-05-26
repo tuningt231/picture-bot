@@ -22,11 +22,11 @@ class SupportDialog(StatesGroup):
 router = Router()
 
 
-@router.message(Command("support"))
+@router.message(Command("support"), StateFilter(None))
 async def command_support_handler(message: Message, state: FSMContext) -> None:
     assert message.from_user is not None
     await state.set_state(SupportDialog.ACTIVE)
-    await message.answer("Следующее сообщение будет отправлено в поддержку")
+    await message.answer("Ты обратился в службу поддержки. В следующем сообщении опиши свою проблему. (/cancel, чтобы отменить)")
 
 
 @router.message(Command("cancel"), StateFilter(SupportDialog))
@@ -41,11 +41,11 @@ async def support_message_handler(message: Message, state: FSMContext, bot: Bot)
     await state.clear()
     await bot.send_message(SUPPORT_CHAT, 
                            "Сообщение в службу поддержки от "
-                           f"{message.from_user.username} ({message.from_user.full_name})\n"
+                           f"@{message.from_user.username} ({message.from_user.full_name})\n"
                            f"Ответь на ЭТО сообщение, чтобы отправить ответ пользователю\n"
                            f"chat_id={message.chat.id}")
     await message.copy_to(SUPPORT_CHAT)
-    await message.answer("Сообщение отправлено в поддержку")
+    await message.answer("Сообщение направлено в поддержку. Ожидай ответа")
 
 
 @router.message(F.chat.id == SUPPORT_CHAT, F.reply_to_message)
@@ -54,15 +54,16 @@ async def support_response_handler(message: Message, bot: Bot) -> None:
         assert message.reply_to_message is not None
         assert message.reply_to_message.text is not None
     
-        res = re.findall(r'^chat_id=(\d+)', message.reply_to_message.text)
+        res = re.findall(r'chat_id=([0-9\-]+)', message.reply_to_message.text)
         if len(res) == 1:
             chat_id = int(res[0])
             await bot.send_message(chat_id, "У тебя новое сообщение от службы поддержки")
             await message.copy_to(chat_id)
+            await message.reply("Сообщение доставлено")
+        else:
+            await message.answer("Не удалось распарсить chat_id")
             
     except Exception as e:
         await message.answer(f"Ошибка {e}")
-
-    await message.answer(f"Не удалось отправить сообщение")
 
 

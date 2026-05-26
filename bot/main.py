@@ -12,9 +12,7 @@ from aiogram.enums import ParseMode
 from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 
-from bot.admin_chat import admin_router
-
-import routes
+import bot.routes as routes
 
 fallback_router = Router()
 
@@ -27,8 +25,10 @@ if BOT_TOKEN == "":
 @fallback_router.message(StateFilter(None))
 async def default_handler(message: Message) -> None:
     # todo: смешные сообщения
-    await message.answer(str(message.chat.id))
-    await message.answer(message.text or "Nice try!")
+    # await message.answer(str(message.photo[-1].file_id))
+    # await message.answer(str(message.photo[-1].file_unique_id))
+    await message.answer("Отправь фотографию или команду🙂")
+    
 
 
 async def bot_main() -> None:
@@ -36,14 +36,10 @@ async def bot_main() -> None:
 
     dp = Dispatcher()
 
-    # dp.message.middleware(SetUserMiddleware())
-    # dp.message.middleware(CheckAccessMiddleware())
-
-    # dp.include_router(router)
-    # dp.include_router(picture_router)
-    # dp.include_router(profile_router)
     dp.include_router(routes.start_router)
-    dp.include_router(admin_router)
+    dp.include_router(routes.megabattle_router)
+    dp.include_router(routes.support_router)
+    dp.include_router(routes.picture_router)
     dp.include_router(fallback_router)
 
     await dp.start_polling(bot)

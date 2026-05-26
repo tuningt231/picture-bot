@@ -2,7 +2,7 @@ from aiogram import Bot, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, ReplyKeyboardRemove
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 import logging as log
 
 
@@ -16,29 +16,34 @@ class StartDialog(StatesGroup):
     IS_SUBSCRIBER = State()
 
 
-@router.message(Command("start"))
+@router.message(Command("start"), StateFilter(None))
 async def command_start_handler(message: Message, state: FSMContext, bot: Bot) -> None:
     assert message.from_user is not None
     await state.clear()
-    await message.answer("Приветственное сообщение с информацией")
+    # todo: картинка и более лучший текст
+    await message.answer("Привет! 👋 Добро пожаловать в бот MEGABATTLE NOW. \n\nПоделись фото своей подготовки к гала-концерту — это может быть костюм, репетиция или просто атмосфера перед подготовки. Твоё фото появится на экранах в холле 2 этажа")
+
     user = await Api.getUser(message.from_user.id)
     if user is not None:
         await message.answer("Ты уже зарегистрирован.")
         return
+    
     await check_subscription(message, state, bot)
 
 
 async def check_subscription(message: Message, state: FSMContext, bot: Bot) -> None:
-    assert message.from_user is not None
-    await message.answer("Проверяю подписку на канал...")
-    try:
-        member = await bot.get_chat_member("@itmomegabattle", message.from_user.id)
-        is_subscribed = member.status not in ("left", "kicked")
-    except Exception:
-        log.warning(
-            f'Not able to check user {message.from_user.id} subscription')
-        is_subscribed = False
+    # assert message.from_user is not None
+    # await message.answer("Проверяю подписку на @itmomegabattle")
+    # try:
+    #     member = await bot.get_chat_member("@itmomegabattle", message.from_user.id)
+    #     is_subscribed = member.status in ("member", "administrator", "creator")
+    # except Exception:
+    #     log.warning(
+    #         f'Not able to check user {message.from_user.id} subscription')
+    #     is_subscribed = False
 
+    # todo:
+    is_subscribed = True
     if not is_subscribed:
         await ask_subscribe(message, state)
     else:
@@ -57,7 +62,7 @@ async def ask_subscribe(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(StartDialog.IS_SUBSCRIBER)
+@router.message(StateFilter(StartDialog.IS_SUBSCRIBER))
 async def handle_is_subscriber(message: Message, state: FSMContext, bot: Bot) -> None:
     await check_subscription(message, state, bot)
 
@@ -67,10 +72,13 @@ async def finish_registration(message: Message, state: FSMContext, bot: Bot) -> 
     user = message.from_user
     await state.clear()
 
-    await Api.createUser(
-        tg_id=user.id,
-        tg_tag=user.username or "",
-        username=user.full_name,
-    )
+    try:
+        await Api.createUser(
+            tg_id=user.id,
+            tg_tag=user.username or "",
+            username=user.full_name,
+        )
+        await message.answer("Готов принимать фото!", reply_markup=ReplyKeyboardRemove())
+    except:
+        await message.answer("Ошибка регистрации", reply_markup=ReplyKeyboardRemove())
 
-    await message.answer("Регистрация завершена! Добро пожаловать!", reply_markup=ReplyKeyboardRemove())
