@@ -7,7 +7,7 @@ let spinningAnimationID = null;
 const STATE = {
     RX: 280,
     RY: 170,
-    SPEED: 0.05,
+    SPEED: 0.08,
 
     _timers: {},
 
@@ -168,8 +168,8 @@ function selectNewImages() {
     const sorted = [...imageCache.entries()]
         .sort((a, b) => b[1].priority - a[1].priority);
 
-    const minPicCount = 5;
-    const maxPicCount = 7;
+    const minPicCount = 6;
+    const maxPicCount = 8;
     const count = Math.min(Math.floor(Math.random() * (maxPicCount - minPicCount + 1)) + minPicCount, sorted.length);
     const selected = sorted.slice(0, count);
     const rest = sorted.slice(count);
@@ -201,14 +201,15 @@ async function init() {
 
     const sleep = ms => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const commonRX = 300;
-    const commonRY = 200;
+    const commonRX = 330;
+    const commonRY = 190;
     const bigRX = 900;
     const bigRY = 600;
-    const transitionMs = 2_000;
-    const durationMs = 60_000;
+    const transitionMs = 1_000;
+    const durationMs = 12_000;
 
-    setInterval(refreshConfig, 60_000);
+    setInterval(refreshConfig, 12_000);
+
     setInterval(async () => {
         STATE.tweenValue('RX', bigRX, transitionMs, true);
         STATE.tweenValue('RY', bigRY, transitionMs, true);

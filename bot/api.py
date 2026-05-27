@@ -66,6 +66,13 @@ class Api:
                 resp.raise_for_status()
 
     @staticmethod
+    async def getUsers() -> list[dict]:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{BASE_URL}/users") as resp:
+                resp.raise_for_status()
+                return await resp.json()
+
+    @staticmethod
     async def approveMember(tg_id: int) -> None:
         async with aiohttp.ClientSession() as session:
             async with session.patch(f"{BASE_URL}/users/{tg_id}", json={

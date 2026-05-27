@@ -4,6 +4,8 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
 from tortoise.contrib.pydantic import pydantic_model_creator
@@ -21,7 +23,8 @@ register_tortoise(app,
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    # allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
 )
 
 
@@ -142,3 +145,8 @@ async def patch_picture(picture_id: int, body: UpdatePictureRequest):  # type: i
         raise HTTPException(status_code=404, detail="Picture not found")
     await picture.update_from_dict(body.dict(exclude_unset=True)).save()
     return picture
+
+
+# --- Статика — должно быть последним ---
+
+app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="static")

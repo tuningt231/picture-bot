@@ -13,6 +13,7 @@ from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 
 import bot.routes as routes
+from bot.middleware import BanCheckMiddleware
 
 fallback_router = Router()
 
@@ -35,6 +36,8 @@ async def bot_main() -> None:
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     dp = Dispatcher()
+
+    dp.update.middleware(BanCheckMiddleware())
 
     dp.include_router(routes.start_router)
     dp.include_router(routes.megabattle_router)

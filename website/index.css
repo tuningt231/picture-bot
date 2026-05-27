@@ -78,3 +78,10 @@ body {
     transform-origin: center center;
     background: #4a90d9;
 }
+
+.qr-code {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    margin: 10px;
+}

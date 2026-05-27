@@ -21,7 +21,7 @@ async def command_start_handler(message: Message, state: FSMContext, bot: Bot) -
     assert message.from_user is not None
     await state.clear()
     # todo: картинка и более лучший текст
-    await message.answer("Привет! 👋 Добро пожаловать в бот MEGABATTLE NOW. \n\nПоделись фото своей подготовки к гала-концерту — это может быть костюм, репетиция или просто атмосфера перед подготовки. Твоё фото появится на экранах в холле 2 этажа")
+    await message.answer("Привет! 👋 Добро пожаловать в бот MEGABATTLE NOW. \n\nПоделись фото своей подготовки к гала-концерту — это может быть костюм, репетиция или просто атмосфера подготовки. Твоё фото появится на экранах в холле 2 этажа")
 
     user = await Api.getUser(message.from_user.id)
     if user is not None:
